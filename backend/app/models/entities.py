@@ -40,7 +40,7 @@ class QuickMessage(Base):
 
 class Favorite(Base):
     __tablename__ = "future_crm_favorites"
-    __table_args__ = (UniqueConstraint("user_id", "message_id", name="uq_user_message_favorite"),)
+    __table_args__ = (UniqueConstraint("user_id", "message_id", name="future_crm_uq_user_message_favorite"),)
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(Integer, nullable=False)
     message_id: Mapped[int] = mapped_column(Integer, nullable=False)
