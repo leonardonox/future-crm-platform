@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Future CRM Admin</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="shell">
+    <section class="topbar">
+      <div>
+        <h1>Future CRM Admin</h1>
+        <p id="sessionText">Gerencie usuários, categorias e respostas da empresa.</p>
+      </div>
+      <button id="logoutBtn" class="ghost hidden" type="button">Sair</button>
+    </section>
+
+    <section id="loginView" class="login">
+      <div class="card">
+        <h2>Acesso administrativo</h2>
+        <label>API</label>
+        <input id="apiBase" value="http://localhost:8000/api" placeholder="https://api.suaempresa.com/api">
+        <label>E-mail</label>
+        <input id="email" autocomplete="username" placeholder="admin@empresa.com">
+        <label>Senha</label>
+        <input id="password" type="password" autocomplete="current-password" placeholder="Senha">
+        <button id="loginBtn" type="button">Entrar</button>
+        <p class="muted">Local: admin@future.local / 123456</p>
+      </div>
+    </section>
+
+    <section id="appView" class="hidden">
+      <div id="notice" class="notice hidden"></div>
+      <nav class="tabs">
+        <button class="tab active" data-tab="messages" type="button">Respostas</button>
+        <button class="tab" data-tab="categories" type="button">Categorias</button>
+        <button class="tab" data-tab="users" type="button">Usuários</button>
+        <button class="tab" data-tab="usage" type="button">Uso</button>
+      </nav>
+
+      <section id="messages" class="tab-panel">
+        <div class="grid">
+          <form id="messageForm" class="card form">
+            <h2>Resposta</h2>
+            <input type="hidden" id="messageId">
+            <label>Título</label>
+            <input id="messageTitle" required>
+            <label>Categoria</label>
+            <select id="messageCategory" required></select>
+            <label>Visibilidade</label>
+            <select id="messageScope">
+              <option value="company">Empresa</option>
+              <option value="user">Pessoal</option>
+            </select>
+            <label>Mensagem</label>
+            <textarea id="messageContent" rows="8" required></textarea>
+            <div class="actions">
+              <button type="submit">Salvar</button>
+              <button class="ghost" id="clearMessage" type="button">Limpar</button>
+            </div>
+          </form>
+          <div class="card">
+            <div class="section-head">
+              <h2>Respostas cadastradas</h2>
+              <input id="messageSearch" placeholder="Buscar">
+            </div>
+            <div id="messageList" class="list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="categories" class="tab-panel hidden">
+        <div class="grid">
+          <form id="categoryForm" class="card form">
+            <h2>Categoria</h2>
+            <label>Nome</label>
+            <input id="categoryName" required>
+            <label>Ícone</label>
+            <input id="categoryIcon" value="💬">
+            <label>Visibilidade</label>
+            <select id="categoryScope">
+              <option value="company">Empresa</option>
+              <option value="user">Pessoal</option>
+            </select>
+            <button type="submit">Criar categoria</button>
+          </form>
+          <div class="card">
+            <h2>Categorias</h2>
+            <div id="categoryList" class="list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="users" class="tab-panel hidden">
+        <div class="grid">
+          <form id="userForm" class="card form">
+            <h2>Usuário</h2>
+            <input type="hidden" id="userId">
+            <label>Nome</label>
+            <input id="userName" required>
+            <label>E-mail</label>
+            <input id="userEmail" type="email" required>
+            <label>Senha</label>
+            <input id="userPassword" type="password" placeholder="Obrigatória ao criar">
+            <label>Perfil</label>
+            <select id="userRole">
+              <option value="agent">Atendente</option>
+              <option value="admin">Admin</option>
+            </select>
+            <label class="check"><input id="userActive" type="checkbox" checked> Ativo</label>
+            <div class="actions">
+              <button type="submit">Salvar</button>
+              <button class="ghost" id="clearUser" type="button">Limpar</button>
+            </div>
+          </form>
+          <div class="card">
+            <h2>Usuários</h2>
+            <div id="userList" class="list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="usage" class="tab-panel hidden">
+        <div class="card">
+          <h2>Últimos usos</h2>
+          <div id="usageList" class="list"></div>
+        </div>
+      </section>
+    </section>
+  </main>
+  <script src="./app.js"></script>
+</body>
+</html>
