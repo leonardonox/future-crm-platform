@@ -79,9 +79,49 @@ def get_visible_category(category_id: int, scope: str, user: User, db: Session) 
     raise HTTPException(status_code=403, detail="Categoria não permitida para este item")
 
 
+def bootstrap_admin_password() -> str | None:
+    return settings.bootstrap_admin_password or settings.setup_token
+
+
+def upsert_bootstrap_admin(db: Session) -> User | None:
+    password = bootstrap_admin_password()
+    if not password:
+        return None
+
+    user = db.query(User).filter(User.email == settings.bootstrap_admin_email).first()
+    if user:
+        user.name = settings.bootstrap_admin_name
+        user.password_hash = hash_password(password)
+        user.role = "admin"
+        user.is_active = True
+    else:
+        user = User(
+            name=settings.bootstrap_admin_name,
+            email=settings.bootstrap_admin_email,
+            password_hash=hash_password(password),
+            role="admin",
+            is_active=True,
+        )
+        db.add(user)
+        db.flush()
+
+    if not db.query(Category).filter(Category.scope == "company").first():
+        db.add(Category(name="Geral", icon="chat", scope="company"))
+
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 @router.post("/auth/login", response_model=TokenOut)
 def login(payload: LoginIn, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == payload.email).first()
+    if (
+        payload.email == settings.bootstrap_admin_email
+        and payload.password == bootstrap_admin_password()
+        and (not user or not user.is_active or not verify_password(payload.password, user.password_hash))
+    ):
+        user = upsert_bootstrap_admin(db)
     if not user or not user.is_active or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="E-mail ou senha inválidos")
     return TokenOut(access_token=create_access_token(user.email))
