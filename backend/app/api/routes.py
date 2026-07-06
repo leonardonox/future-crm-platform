@@ -277,9 +277,9 @@ def log_message_usage(message_id: int, payload: UsageIn, user: User = Depends(ge
 def setup_dev(db: Session = Depends(get_db)):
     if settings.env != "dev":
         raise HTTPException(status_code=404, detail="Setup disponível apenas em ambiente dev")
-    if db.query(User).filter(User.email == "admin@future.local").first():
-        return {"ok": True, "email": "admin@future.local", "password": "123456"}
-    user = User(name="Admin Future", email="admin@future.local", password_hash=hash_password("123456"), role="admin")
+    if db.query(User).filter(User.email == "admin@futurecrm.com").first():
+        return {"ok": True, "email": "admin@futurecrm.com", "password": "123456"}
+    user = User(name="Admin Future", email="admin@futurecrm.com", password_hash=hash_password("123456"), role="admin")
     db.add(user)
     db.flush()
     cat = Category(name="Editorial", icon="books", scope="company")
@@ -292,7 +292,7 @@ def setup_dev(db: Session = Depends(get_db)):
         scope="company",
     ))
     db.commit()
-    return {"ok": True, "email": "admin@future.local", "password": "123456"}
+    return {"ok": True, "email": "admin@futurecrm.com", "password": "123456"}
 
 
 @router.post("/setup/first-admin", response_model=UserOut)

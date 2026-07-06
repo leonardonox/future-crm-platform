@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 1440
     cors_origins: str = "*"
     setup_token: str | None = None
-    bootstrap_admin_email: str = "admin@future.local"
+    bootstrap_admin_email: str = "admin@futurecrm.com"
     bootstrap_admin_name: str = "Admin Future"
     bootstrap_admin_password: str | None = None
 

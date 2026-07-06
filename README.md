@@ -42,7 +42,7 @@ http://localhost:8000/api/setup/dev
 Login inicial:
 
 ```text
-admin@future.local
+admin@futurecrm.com
 123456
 ```
 

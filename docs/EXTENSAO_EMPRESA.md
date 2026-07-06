@@ -41,7 +41,7 @@ http://localhost:8000/panel/
 Login local:
 
 ```text
-admin@future.local
+admin@futurecrm.com
 123456
 ```
 
