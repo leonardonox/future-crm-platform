@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: future-crm-api
+    env: python
+    plan: free
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: ENV
+        value: prod
+      - key: APP_NAME
+        value: Future CRM Platform
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SETUP_TOKEN
+        generateValue: true
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: 1440
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: DATABASE_URL
+        sync: false

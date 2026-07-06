@@ -77,6 +77,11 @@ O Render vai criar:
 - PostgreSQL: `future-crm-db`
 - Variáveis automáticas: `DATABASE_URL`, `SECRET_KEY` e `SETUP_TOKEN`
 
+Se o Render mostrar `cannot have more than one active free tier database`, sua conta já tem outro PostgreSQL gratuito ativo. Nesse caso há duas opções:
+
+1. Apagar o banco gratuito antigo no Render e rodar o Blueprint normal com `render.yaml`.
+2. Usar um PostgreSQL já existente e criar o Blueprint com `render-web-only.yaml`. Nesse modo, preencha manualmente a variável `DATABASE_URL` no serviço `future-crm-api`.
+
 Depois do deploy, a API ficará em uma URL parecida com:
 
 ```text
