@@ -288,19 +288,27 @@ def setup_dev(db: Session = Depends(get_db)):
 def setup_first_admin(payload: SetupAdminIn, db: Session = Depends(get_db)):
     if not settings.setup_token or payload.setup_token != settings.setup_token:
         raise HTTPException(status_code=403, detail="Token de setup inválido")
-    if db.query(User).first():
-        raise HTTPException(status_code=409, detail="Setup inicial já foi executado")
-    user = User(
-        name=payload.name,
-        email=payload.email,
-        password_hash=hash_password(payload.password),
-        role="admin",
-        is_active=True,
-    )
-    db.add(user)
-    db.flush()
-    category = Category(name="Geral", icon="💬", scope="company")
-    db.add(category)
+
+    user = db.query(User).filter(User.email == payload.email).first()
+    if user:
+        user.name = payload.name
+        user.password_hash = hash_password(payload.password)
+        user.role = "admin"
+        user.is_active = True
+    else:
+        user = User(
+            name=payload.name,
+            email=payload.email,
+            password_hash=hash_password(payload.password),
+            role="admin",
+            is_active=True,
+        )
+        db.add(user)
+        db.flush()
+
+    if not db.query(Category).filter(Category.scope == "company").first():
+        db.add(Category(name="Geral", icon="💬", scope="company"))
+
     db.commit()
     db.refresh(user)
     return user
