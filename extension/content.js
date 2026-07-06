@@ -146,7 +146,7 @@ function renderLogin(body) {
     <label class="fca-label" for="fca-pass">Senha</label>
     <input class="fca-input" id="fca-pass" type="password" autocomplete="current-password" placeholder="Senha">
     <button class="fca-btn fca-full" id="fca-login" type="button">${state.loading ? "Entrando..." : "Entrar"}</button>
-    <p class="fca-small">Admin inicial: admin@futurecrm.com / SETUP_TOKEN</p>
+    <p class="fca-small">Admin inicial: admin@futurecrm.com / 123456</p>
   `;
 
   document.getElementById("fca-login").onclick = login;

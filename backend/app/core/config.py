@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     setup_token: str | None = None
     bootstrap_admin_email: str = "admin@futurecrm.com"
     bootstrap_admin_name: str = "Admin Future"
-    bootstrap_admin_password: str | None = None
+    bootstrap_admin_password: str | None = "123456"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
