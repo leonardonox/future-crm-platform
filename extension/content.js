@@ -1,4 +1,4 @@
-const API_DEFAULT = "http://localhost:8000/api";
+const API_DEFAULT = "https://future-crm-api-mensagensrapidas.onrender.com/api";
 const VAR_DEFAULTS = {
   nome: "",
   revista: "",
@@ -139,8 +139,6 @@ function renderBody() {
 function renderLogin(body) {
   body.innerHTML = `
     ${renderNotice()}
-    <label class="fca-label" for="fca-api">API</label>
-    <input class="fca-input" id="fca-api" value="${escapeAttr(state.apiBase)}" placeholder="https://api.suaempresa.com/api">
     <label class="fca-label" for="fca-email">E-mail</label>
     <input class="fca-input" id="fca-email" autocomplete="username" placeholder="usuario@empresa.com">
     <label class="fca-label" for="fca-pass">Senha</label>
@@ -275,10 +273,10 @@ function escapeAttr(value) {
 async function login() {
   const email = document.getElementById("fca-email").value.trim();
   const password = document.getElementById("fca-pass").value;
-  const apiBase = document.getElementById("fca-api").value.trim().replace(/\/$/, "");
+  const apiBase = API_DEFAULT;
 
   if (!email || !password || !apiBase) {
-    setState({ error: "Preencha API, e-mail e senha." });
+    setState({ error: "Preencha e-mail e senha." });
     return;
   }
 
@@ -428,7 +426,8 @@ async function logUsage(id) {
 (async function init() {
   const saved = await storage.get(["token", "apiBase", "cachedCategories", "cachedMessages", "cachedUser"]);
   state.token = saved.token;
-  state.apiBase = saved.apiBase || API_DEFAULT;
+  state.apiBase = API_DEFAULT;
+  await storage.set({ apiBase: API_DEFAULT });
   state.user = saved.cachedUser || null;
   state.categories = saved.cachedCategories || [];
   state.messages = saved.cachedMessages || [];
