@@ -1,5 +1,5 @@
 const state = {
-  apiBase: localStorage.getItem("futureApiBase") || "http://localhost:8000/api",
+  apiBase: localStorage.getItem("futureApiBase") || "https://future-crm-api-mensagensrapidas.onrender.com/api",
   token: localStorage.getItem("futureToken") || "",
   me: null,
   users: [],
@@ -188,6 +188,7 @@ function bindEvents() {
   $("messageForm").onsubmit = saveMessage;
   $("categoryForm").onsubmit = saveCategory;
   $("userForm").onsubmit = saveUser;
+  $("passwordForm").onsubmit = changePassword;
   $("clearMessage").onclick = clearMessageForm;
   $("clearUser").onclick = clearUserForm;
   document.body.onclick = handleBodyClick;
@@ -263,6 +264,25 @@ async function saveUser(event) {
   clearUserForm();
   await refreshAll();
   notice("Usuário salvo.");
+}
+
+async function changePassword(event) {
+  event.preventDefault();
+  const currentPassword = $("currentPassword").value;
+  const newPassword = $("newPassword").value;
+  const confirmPassword = $("confirmPassword").value;
+
+  if (newPassword !== confirmPassword) {
+    notice("A confirmação da senha não confere.", "error");
+    return;
+  }
+
+  await api("/me/password", {
+    method: "PUT",
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  });
+  $("passwordForm").reset();
+  notice("Senha alterada.");
 }
 
 function fillMessageForm(message) {

@@ -20,7 +20,7 @@
       <div class="card">
         <h2>Acesso administrativo</h2>
         <label>API</label>
-        <input id="apiBase" value="http://localhost:8000/api" placeholder="https://api.suaempresa.com/api">
+        <input id="apiBase" value="https://future-crm-api-mensagensrapidas.onrender.com/api" placeholder="https://api.suaempresa.com/api">
         <label>E-mail</label>
         <input id="email" autocomplete="username" placeholder="admin@empresa.com">
         <label>Senha</label>
@@ -36,6 +36,7 @@
         <button class="tab active" data-tab="messages" type="button">Respostas</button>
         <button class="tab" data-tab="categories" type="button">Categorias</button>
         <button class="tab" data-tab="users" type="button">Usuários</button>
+        <button class="tab" data-tab="password" type="button">Minha senha</button>
         <button class="tab" data-tab="usage" type="button">Uso</button>
       </nav>
 
@@ -126,6 +127,19 @@
           <h2>Últimos usos</h2>
           <div id="usageList" class="list"></div>
         </div>
+      </section>
+
+      <section id="password" class="tab-panel hidden">
+        <form id="passwordForm" class="card form">
+          <h2>Minha senha</h2>
+          <label>Senha atual</label>
+          <input id="currentPassword" type="password" autocomplete="current-password" required>
+          <label>Nova senha</label>
+          <input id="newPassword" type="password" autocomplete="new-password" required>
+          <label>Confirmar nova senha</label>
+          <input id="confirmPassword" type="password" autocomplete="new-password" required>
+          <button type="submit">Trocar senha</button>
+        </form>
       </section>
     </section>
   </main>

@@ -13,6 +13,7 @@ from app.schemas.dto import (
     LoginIn,
     MessageIn,
     MessageOut,
+    PasswordChangeIn,
     SetupAdminIn,
     TokenOut,
     UsageIn,
@@ -89,6 +90,15 @@ def login(payload: LoginIn, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user)):
     return user
+
+
+@router.put("/me/password")
+def change_password(payload: PasswordChangeIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not verify_password(payload.current_password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Senha atual inválida")
+    user.password_hash = hash_password(payload.new_password)
+    db.commit()
+    return {"ok": True}
 
 
 @router.get("/admin/users", response_model=list[UserOut])
