@@ -6,6 +6,11 @@ const VAR_DEFAULTS = {
   doi: "",
   link: "",
 };
+const MAGAZINE_DEFAULTS = [
+  { id: "all", name: "Todas as revistas" },
+  { id: "dcs", name: "DCS" },
+  { id: "aposta", name: "Revista Aposta" },
+];
 
 let state = {
   token: null,
@@ -15,6 +20,7 @@ let state = {
   categories: [],
   filter: "",
   categoryId: "all",
+  magazineId: "all",
   onlyFavorites: false,
   status: "",
   error: "",
@@ -113,7 +119,10 @@ function render() {
   panel.className = "fca-hidden";
   panel.innerHTML = `
     <div class="fca-head">
-      <span>Future CRM</span>
+      <div>
+        <div class="fca-brand">Future CRM</div>
+        <div class="fca-head-sub">Respostas rapidas</div>
+      </div>
       <button class="fca-icon-btn" id="fca-close" type="button" title="Fechar">×</button>
     </div>
     <div class="fca-body" id="fca-body"></div>
@@ -139,6 +148,7 @@ function renderBody() {
 function renderLogin(body) {
   body.innerHTML = `
     ${renderNotice()}
+    <div class="fca-login-title">Acesso da equipe</div>
     <label class="fca-label" for="fca-email">E-mail</label>
     <input class="fca-input" id="fca-email" autocomplete="username" placeholder="usuario@empresa.com">
     <label class="fca-label" for="fca-pass">Senha</label>
@@ -152,26 +162,43 @@ function renderLogin(body) {
 
 function renderMessages(body) {
   const messages = filteredMessages();
+  const magazines = availableMagazines();
+  const selectedMagazine = magazines.find(item => item.id === state.magazineId) || magazines[0];
   body.innerHTML = `
     ${renderNotice()}
-    <input class="fca-input" id="fca-search" placeholder="Buscar resposta..." value="${escapeAttr(state.filter)}">
-    <div class="fca-filters">
+    <div class="fca-userbar">
+      <div>
+        <div class="fca-user-name">${escapeHtml(state.user?.name || "Atendente")}</div>
+        <div class="fca-user-meta">${escapeHtml(selectedMagazine.name)}</div>
+      </div>
+      <button class="fca-link-btn" id="fca-logout" type="button">Sair</button>
+    </div>
+    <label class="fca-label" for="fca-magazine-filter">Revista em atendimento</label>
+    <select class="fca-select fca-context-select" id="fca-magazine-filter">
+      ${magazines.map(magazine => `<option value="${magazine.id}" ${state.magazineId === magazine.id ? "selected" : ""}>${escapeHtml(magazine.name)}</option>`).join("")}
+    </select>
+    <input class="fca-input fca-search" id="fca-search" placeholder="Buscar resposta..." value="${escapeAttr(state.filter)}">
+    <div class="fca-filters-grid">
       <select class="fca-select" id="fca-category-filter">
         <option value="all">Todas as categorias</option>
         <option value="favorites" ${state.onlyFavorites ? "selected" : ""}>Favoritas</option>
         ${state.categories.map(category => `<option value="${category.id}" ${String(state.categoryId) === String(category.id) && !state.onlyFavorites ? "selected" : ""}>${escapeHtml(category.icon)} ${escapeHtml(category.name)}</option>`).join("")}
       </select>
     </div>
-    <div class="fca-actions">
+    <div class="fca-actions fca-toolbar">
       <button class="fca-btn" id="fca-new" type="button">Nova</button>
       <button class="fca-btn secondary" id="fca-sync" type="button">${state.loading ? "Sincronizando..." : "Sincronizar"}</button>
-      <button class="fca-btn secondary" id="fca-logout" type="button">Sair</button>
     </div>
+    <div class="fca-count">${messages.length} resposta${messages.length === 1 ? "" : "s"} neste contexto</div>
     <div id="fca-list">
       ${messages.length ? messages.map(renderMessageCard).join("") : '<div class="fca-empty">Nenhuma resposta encontrada.</div>'}
     </div>
   `;
 
+  document.getElementById("fca-magazine-filter").onchange = async e => {
+    await storage.set({ selectedMagazineId: e.target.value });
+    setState({ magazineId: e.target.value, status: "", error: "" });
+  };
   document.getElementById("fca-search").oninput = e => setState({ filter: e.target.value, status: "", error: "" });
   document.getElementById("fca-category-filter").onchange = e => {
     if (e.target.value === "favorites") {
@@ -209,11 +236,51 @@ function renderMessages(body) {
 
 function filteredMessages() {
   const term = state.filter.trim().toLowerCase();
+  const magazine = availableMagazines().find(item => item.id === state.magazineId);
   return state.messages
     .filter(message => !term || `${message.title} ${message.content} ${message.category?.name || ""}`.toLowerCase().includes(term))
+    .filter(message => matchesMagazine(message, magazine))
     .filter(message => !state.onlyFavorites || message.is_favorite)
     .filter(message => state.categoryId === "all" || String(message.category_id) === String(state.categoryId))
     .sort((a, b) => Number(b.is_favorite) - Number(a.is_favorite) || a.title.localeCompare(b.title));
+}
+
+function availableMagazines() {
+  const found = [];
+  for (const category of state.categories) {
+    const name = String(category.name || "").trim();
+    if (isMagazineLike(name)) found.push({ id: normalizeKey(name), name });
+  }
+  for (const message of state.messages) {
+    for (const name of detectMagazineNames(`${message.title} ${message.content} ${message.category?.name || ""}`)) {
+      found.push({ id: normalizeKey(name), name });
+    }
+  }
+
+  const merged = [...MAGAZINE_DEFAULTS, ...found];
+  const seen = new Set();
+  return merged.filter(item => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+}
+
+function isMagazineLike(name) {
+  return /revista|journal|dcs|aposta/i.test(name);
+}
+
+function detectMagazineNames(text) {
+  const names = [];
+  if (/dcs/i.test(text)) names.push("DCS");
+  if (/aposta/i.test(text)) names.push("Revista Aposta");
+  return names;
+}
+
+function matchesMagazine(message, magazine) {
+  if (!magazine || magazine.id === "all") return true;
+  const haystack = normalizeKey(`${message.title} ${message.content} ${message.category?.name || ""}`);
+  return haystack.includes(magazine.id) || haystack.includes(normalizeKey(magazine.name));
 }
 
 function renderMessageCard(message) {
@@ -243,8 +310,19 @@ function renderNotice() {
 }
 
 function applyVars(text) {
-  const values = { ...VAR_DEFAULTS, ...extractContactVars() };
+  const magazine = availableMagazines().find(item => item.id === state.magazineId);
+  const revista = magazine?.id === "all" ? "" : magazine?.name || "";
+  const values = { ...VAR_DEFAULTS, revista, ...extractContactVars() };
   return String(text).replace(/\{\{(nome|revista|valor|doi|link|telefone|email)\}\}/g, (_, key) => values[key] ?? "");
+}
+
+function normalizeKey(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 function extractContactVars() {
@@ -365,6 +443,10 @@ async function saveMessage(message = null) {
     category_id: Number(document.getElementById("fca-category").value),
     scope: document.getElementById("fca-scope")?.value || "user",
   };
+  const magazine = availableMagazines().find(item => item.id === state.magazineId);
+  if (!message && magazine && magazine.id !== "all" && !matchesTextMagazine(payload.title, magazine)) {
+    payload.title = `${magazine.name} - ${payload.title}`;
+  }
 
   if (!payload.title || !payload.content || !payload.category_id) {
     setState({ error: "Preencha título, categoria e mensagem." });
@@ -384,6 +466,11 @@ async function saveMessage(message = null) {
     setState({ error: error.message || "Falha ao salvar.", loading: false });
     editMessage(message);
   }
+}
+
+function matchesTextMagazine(text, magazine) {
+  const value = normalizeKey(text);
+  return value.includes(magazine.id) || value.includes(normalizeKey(magazine.name));
 }
 
 async function removeMessage(id) {
@@ -424,13 +511,14 @@ async function logUsage(id) {
 }
 
 (async function init() {
-  const saved = await storage.get(["token", "apiBase", "cachedCategories", "cachedMessages", "cachedUser"]);
+  const saved = await storage.get(["token", "apiBase", "cachedCategories", "cachedMessages", "cachedUser", "selectedMagazineId"]);
   state.token = saved.token;
   state.apiBase = API_DEFAULT;
   await storage.set({ apiBase: API_DEFAULT });
   state.user = saved.cachedUser || null;
   state.categories = saved.cachedCategories || [];
   state.messages = saved.cachedMessages || [];
+  state.magazineId = saved.selectedMagazineId || "all";
   render();
 
   if (state.token) {
