@@ -24,11 +24,13 @@ async function api(path, options = {}) {
 }
 
 async function readError(res) {
+  const text = await res.text();
+  if (!text) return `Erro ${res.status}`;
   try {
-    const data = await res.json();
+    const data = JSON.parse(text);
     return data.detail || JSON.stringify(data);
   } catch (_) {
-    return res.text();
+    return text;
   }
 }
 
