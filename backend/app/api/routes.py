@@ -317,3 +317,6 @@ def setup_first_admin(payload: SetupAdminIn, db: Session = Depends(get_db)):
     except SQLAlchemyError as exc:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"{type(exc).__name__}: {exc}") from exc
