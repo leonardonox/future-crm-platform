@@ -18,6 +18,7 @@ let state = {
   user: null,
   messages: [],
   categories: [],
+  customMagazines: [],
   filter: "",
   categoryId: "all",
   magazineId: "all",
@@ -180,6 +181,7 @@ function renderMessages(body) {
     <select class="fca-select fca-context-select" id="fca-magazine-filter">
       ${magazines.map(magazine => `<option value="${magazine.id}" ${state.magazineId === magazine.id ? "selected" : ""}>${escapeHtml(magazine.name)}</option>`).join("")}
     </select>
+    <button class="fca-add-magazine" id="fca-add-magazine" type="button">+ Adicionar revista</button>
     <div class="fca-search-wrap"><span>⌕</span><input class="fca-input fca-search" id="fca-search" placeholder="Buscar resposta..." value="${escapeAttr(state.filter)}"></div>
     <div class="fca-filters-grid">
       <select class="fca-select" id="fca-category-filter">
@@ -202,6 +204,7 @@ function renderMessages(body) {
     await storage.set({ selectedMagazineId: e.target.value });
     setState({ magazineId: e.target.value, status: "", error: "" });
   };
+  document.getElementById("fca-add-magazine").onclick = addMagazine;
   document.getElementById("fca-search").oninput = e => setState({ filter: e.target.value, status: "", error: "" });
   document.getElementById("fca-category-filter").onchange = e => {
     if (e.target.value === "favorites") {
@@ -260,13 +263,30 @@ function availableMagazines() {
     }
   }
 
-  const merged = [...MAGAZINE_DEFAULTS, ...found];
+  const merged = [...MAGAZINE_DEFAULTS, ...state.customMagazines, ...found];
   const seen = new Set();
   return merged.filter(item => {
     if (seen.has(item.id)) return false;
     seen.add(item.id);
     return true;
   });
+}
+
+async function addMagazine() {
+  const name = prompt("Nome da revista:");
+  const cleanName = String(name || "").trim();
+  if (!cleanName) return;
+
+  const magazine = { id: normalizeKey(cleanName), name: cleanName };
+  if (!magazine.id) return;
+
+  const customMagazines = [
+    ...state.customMagazines.filter(item => item.id !== magazine.id),
+    magazine,
+  ].sort((a, b) => a.name.localeCompare(b.name));
+
+  await storage.set({ customMagazines, selectedMagazineId: magazine.id });
+  setState({ customMagazines, magazineId: magazine.id, status: "Revista adicionada.", error: "" });
 }
 
 function magazineOptions(includeAll = true) {
@@ -566,13 +586,14 @@ async function logUsage(id) {
 }
 
 (async function init() {
-  const saved = await storage.get(["token", "apiBase", "cachedCategories", "cachedMessages", "cachedUser", "selectedMagazineId"]);
+  const saved = await storage.get(["token", "apiBase", "cachedCategories", "cachedMessages", "cachedUser", "selectedMagazineId", "customMagazines"]);
   state.token = saved.token;
   state.apiBase = API_DEFAULT;
   await storage.set({ apiBase: API_DEFAULT });
   state.user = saved.cachedUser || null;
   state.categories = saved.cachedCategories || [];
   state.messages = saved.cachedMessages || [];
+  state.customMagazines = saved.customMagazines || [];
   state.magazineId = saved.selectedMagazineId || "all";
   render();
 
