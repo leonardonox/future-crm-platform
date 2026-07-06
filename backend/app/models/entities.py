@@ -20,7 +20,7 @@ class Category(Base):
     __tablename__ = "future_crm_categories"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(80), nullable=False)
-    icon: Mapped[str] = mapped_column(String(20), default="💬")
+    icon: Mapped[str] = mapped_column(String(20), default="chat")
     scope: Mapped[str] = mapped_column(String(20), default="company")
     owner_user_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 

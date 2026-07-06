@@ -38,6 +38,9 @@ def startup():
     except SQLAlchemyError as exc:
         db_startup_error = str(exc)
         print(f"Database startup failed: {db_startup_error}")
+    except Exception as exc:
+        db_startup_error = f"{type(exc).__name__}: {exc}"
+        print(f"Application startup failed: {db_startup_error}")
 
 
 def ensure_bootstrap_admin():
@@ -67,7 +70,7 @@ def ensure_bootstrap_admin():
             db.add(admin)
 
         if not db.query(Category).filter(Category.scope == "company").first():
-            db.add(Category(name="Geral", icon="💬", scope="company"))
+            db.add(Category(name="Geral", icon="chat", scope="company"))
         db.commit()
         print(f"Bootstrap admin created: {settings.bootstrap_admin_email}")
     finally:

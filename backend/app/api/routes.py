@@ -282,7 +282,7 @@ def setup_dev(db: Session = Depends(get_db)):
     user = User(name="Admin Future", email="admin@future.local", password_hash=hash_password("123456"), role="admin")
     db.add(user)
     db.flush()
-    cat = Category(name="Editorial", icon="📚", scope="company")
+    cat = Category(name="Editorial", icon="books", scope="company")
     db.add(cat)
     db.flush()
     db.add(QuickMessage(
@@ -319,7 +319,7 @@ def setup_first_admin(payload: SetupAdminIn, db: Session = Depends(get_db)):
             db.flush()
 
         if not db.query(Category).filter(Category.scope == "company").first():
-            db.add(Category(name="Geral", icon="💬", scope="company"))
+            db.add(Category(name="Geral", icon="chat", scope="company"))
 
         db.commit()
         db.refresh(user)
