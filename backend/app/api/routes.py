@@ -180,8 +180,16 @@ def list_messages(user: User = Depends(get_current_user), db: Session = Depends(
         QuickMessage.is_active.is_(True),
         ((QuickMessage.scope == "company") | (QuickMessage.owner_user_id == user.id)),
     ).all()
+    category_ids = {row.category_id for row in rows}
+    categories = {row.id: row for row in db.query(Category).filter(Category.id.in_(category_ids)).all()} if category_ids else {}
     favorite_ids = {fav.message_id for fav in db.query(Favorite).filter(Favorite.user_id == user.id).all()}
-    return [MessageOut.model_validate(row, from_attributes=True).model_copy(update={"is_favorite": row.id in favorite_ids}) for row in rows]
+    return [
+        MessageOut.model_validate(row, from_attributes=True).model_copy(update={
+            "category": categories.get(row.category_id),
+            "is_favorite": row.id in favorite_ids,
+        })
+        for row in rows
+    ]
 
 
 @router.post("/messages", response_model=MessageOut)
