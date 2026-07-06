@@ -167,9 +167,12 @@ function renderMessages(body) {
   body.innerHTML = `
     ${renderNotice()}
     <div class="fca-userbar">
-      <div>
-        <div class="fca-user-name">${escapeHtml(state.user?.name || "Atendente")}</div>
-        <div class="fca-user-meta">${escapeHtml(selectedMagazine.name)}</div>
+      <div class="fca-user-row">
+        <span class="fca-avatar">${escapeHtml(initials(state.user?.name || "Atendente"))}</span>
+        <div>
+          <div class="fca-user-name">${escapeHtml(state.user?.name || "Atendente")}</div>
+          <div class="fca-user-meta">${escapeHtml(selectedMagazine.name)}</div>
+        </div>
       </div>
       <button class="fca-link-btn" id="fca-logout" type="button">Sair</button>
     </div>
@@ -177,7 +180,7 @@ function renderMessages(body) {
     <select class="fca-select fca-context-select" id="fca-magazine-filter">
       ${magazines.map(magazine => `<option value="${magazine.id}" ${state.magazineId === magazine.id ? "selected" : ""}>${escapeHtml(magazine.name)}</option>`).join("")}
     </select>
-    <input class="fca-input fca-search" id="fca-search" placeholder="Buscar resposta..." value="${escapeAttr(state.filter)}">
+    <div class="fca-search-wrap"><span>⌕</span><input class="fca-input fca-search" id="fca-search" placeholder="Buscar resposta..." value="${escapeAttr(state.filter)}"></div>
     <div class="fca-filters-grid">
       <select class="fca-select" id="fca-category-filter">
         <option value="all">Todas as categorias</option>
@@ -186,7 +189,7 @@ function renderMessages(body) {
       </select>
     </div>
     <div class="fca-actions fca-toolbar">
-      <button class="fca-btn" id="fca-new" type="button">Nova</button>
+      <button class="fca-btn" id="fca-new" type="button">+ Nova</button>
       <button class="fca-btn secondary" id="fca-sync" type="button">${state.loading ? "Sincronizando..." : "Sincronizar"}</button>
     </div>
     <div class="fca-count">${messages.length} resposta${messages.length === 1 ? "" : "s"} neste contexto</div>
@@ -266,6 +269,11 @@ function availableMagazines() {
   });
 }
 
+function magazineOptions(includeAll = true) {
+  const magazines = availableMagazines();
+  return includeAll ? magazines : magazines.filter(item => item.id !== "all");
+}
+
 function isMagazineLike(name) {
   return /revista|journal|dcs|aposta/i.test(name);
 }
@@ -281,6 +289,13 @@ function matchesMagazine(message, magazine) {
   if (!magazine || magazine.id === "all") return true;
   const haystack = normalizeKey(`${message.title} ${message.content} ${message.category?.name || ""}`);
   return haystack.includes(magazine.id) || haystack.includes(normalizeKey(magazine.name));
+}
+
+function messageMagazineId(message) {
+  const title = normalizeKey(message?.title || "");
+  const fullText = normalizeKey(`${message?.title || ""} ${message?.content || ""} ${message?.category?.name || ""}`);
+  const found = magazineOptions(false).find(item => title.startsWith(`${item.id}-`) || fullText.includes(item.id));
+  return found?.id || (state.magazineId !== "all" ? state.magazineId : "dcs");
 }
 
 function renderMessageCard(message) {
@@ -348,6 +363,11 @@ function escapeAttr(value) {
   return escapeHtml(value).replace(/'/g, "&#039;");
 }
 
+function initials(name) {
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+  return (parts[0]?.[0] || "F").toUpperCase() + (parts[1]?.[0] || "").toUpperCase();
+}
+
 async function login() {
   const email = document.getElementById("fca-email").value.trim();
   const password = document.getElementById("fca-pass").value;
@@ -411,10 +431,25 @@ async function editMessage(message = null) {
   const categoryOptions = state.categories
     .map(category => `<option value="${category.id}" ${message?.category_id == category.id ? "selected" : ""}>${escapeHtml(category.icon)} ${escapeHtml(category.name)}</option>`)
     .join("");
+  const selectedMagazineId = message ? messageMagazineId(message) : (state.magazineId !== "all" ? state.magazineId : "");
+  const magazineSelectOptions = [
+    `<option value="" ${selectedMagazineId ? "" : "selected"}>Selecione a revista</option>`,
+    ...magazineOptions(false)
+    .map(magazine => `<option value="${magazine.id}" ${selectedMagazineId === magazine.id ? "selected" : ""}>${escapeHtml(magazine.name)}</option>`)
+  ]
+    .join("");
 
   const canSaveCompany = state.user?.role === "admin";
   body.innerHTML = `
     ${renderNotice()}
+    <div class="fca-form-head">
+      <div>
+        <div class="fca-form-title">${message ? "Editar resposta" : "Nova resposta"}</div>
+        <div class="fca-user-meta">Escolha a revista para filtrar depois.</div>
+      </div>
+    </div>
+    <label class="fca-label" for="fca-message-magazine">Revista da resposta</label>
+    <select class="fca-select" id="fca-message-magazine">${magazineSelectOptions}</select>
     <label class="fca-label" for="fca-title">Título</label>
     <input class="fca-input" id="fca-title" placeholder="Título" value="${escapeAttr(message?.title || "")}">
     <label class="fca-label" for="fca-category">Categoria</label>
@@ -443,9 +478,18 @@ async function saveMessage(message = null) {
     category_id: Number(document.getElementById("fca-category").value),
     scope: document.getElementById("fca-scope")?.value || "user",
   };
-  const magazine = availableMagazines().find(item => item.id === state.magazineId);
-  if (!message && magazine && magazine.id !== "all" && !matchesTextMagazine(payload.title, magazine)) {
-    payload.title = `${magazine.name} - ${payload.title}`;
+  const selectedMagazineId = document.getElementById("fca-message-magazine")?.value;
+  const magazine = magazineOptions(false).find(item => item.id === selectedMagazineId);
+  if (!magazine) {
+    setState({ error: "Escolha a revista da resposta." });
+    editMessage(message);
+    return;
+  }
+  if (magazine) {
+    payload.title = stripMagazinePrefix(payload.title);
+    if (!matchesTextMagazine(payload.title, magazine)) {
+      payload.title = `${magazine.name} - ${payload.title}`;
+    }
   }
 
   if (!payload.title || !payload.content || !payload.category_id) {
@@ -471,6 +515,17 @@ async function saveMessage(message = null) {
 function matchesTextMagazine(text, magazine) {
   const value = normalizeKey(text);
   return value.includes(magazine.id) || value.includes(normalizeKey(magazine.name));
+}
+
+function stripMagazinePrefix(title) {
+  let value = String(title || "").trim();
+  for (const magazine of magazineOptions(false)) {
+    const prefix = `${magazine.name} - `;
+    if (value.toLowerCase().startsWith(prefix.toLowerCase())) {
+      value = value.slice(prefix.length).trim();
+    }
+  }
+  return value;
 }
 
 async function removeMessage(id) {
