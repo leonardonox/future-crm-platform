@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.auth.deps import get_current_user
@@ -289,26 +290,30 @@ def setup_first_admin(payload: SetupAdminIn, db: Session = Depends(get_db)):
     if not settings.setup_token or payload.setup_token != settings.setup_token:
         raise HTTPException(status_code=403, detail="Token de setup inválido")
 
-    user = db.query(User).filter(User.email == payload.email).first()
-    if user:
-        user.name = payload.name
-        user.password_hash = hash_password(payload.password)
-        user.role = "admin"
-        user.is_active = True
-    else:
-        user = User(
-            name=payload.name,
-            email=payload.email,
-            password_hash=hash_password(payload.password),
-            role="admin",
-            is_active=True,
-        )
-        db.add(user)
-        db.flush()
+    try:
+        user = db.query(User).filter(User.email == payload.email).first()
+        if user:
+            user.name = payload.name
+            user.password_hash = hash_password(payload.password)
+            user.role = "admin"
+            user.is_active = True
+        else:
+            user = User(
+                name=payload.name,
+                email=payload.email,
+                password_hash=hash_password(payload.password),
+                role="admin",
+                is_active=True,
+            )
+            db.add(user)
+            db.flush()
 
-    if not db.query(Category).filter(Category.scope == "company").first():
-        db.add(Category(name="Geral", icon="💬", scope="company"))
+        if not db.query(Category).filter(Category.scope == "company").first():
+            db.add(Category(name="Geral", icon="💬", scope="company"))
 
-    db.commit()
-    db.refresh(user)
-    return user
+        db.commit()
+        db.refresh(user)
+        return user
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
