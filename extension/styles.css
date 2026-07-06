@@ -13,10 +13,12 @@
 .fca-user-name{font-weight:900;font-size:12px;color:#111827;line-height:1.2}
 .fca-user-meta{font-size:11px;color:#64746d;margin-top:2px;line-height:1.25}
 .fca-label{display:block;margin:10px 0 5px;font-size:10px;font-weight:900;color:#53635c;text-transform:uppercase;letter-spacing:.03em}
+.fca-label-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:10px 0 5px}
+.fca-label-row .fca-label{margin:0}
 .fca-input,.fca-area,.fca-select{width:100%;box-sizing:border-box;border:1px solid #d6dfda;border-radius:8px;padding:10px 11px;margin:0 0 9px;background:#fff;color:#111827;font:13px Arial,sans-serif;outline:none}
 .fca-input:focus,.fca-area:focus,.fca-select:focus{border-color:#0b6b48;box-shadow:0 0 0 3px rgba(11,107,72,.12)}
 .fca-context-select{font-weight:800}
-.fca-add-magazine{width:100%;border:1px dashed #bdd3c9;border-radius:8px;background:#f7fbf9;color:#06412c;font:900 12px Arial,sans-serif;padding:8px 10px;margin:-2px 0 9px;cursor:pointer}
+.fca-add-magazine{border:1px solid #bdd3c9;border-radius:999px;background:#f7fbf9;color:#06412c;font:900 10px Arial,sans-serif;padding:4px 8px;margin:0;cursor:pointer;white-space:nowrap}
 .fca-add-magazine:hover{background:#eef8f3;border-color:#0b6b48}
 .fca-search-wrap{position:relative}
 .fca-search-wrap span{position:absolute;left:11px;top:10px;color:#718179;font-weight:900;z-index:1}

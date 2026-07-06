@@ -177,11 +177,13 @@ function renderMessages(body) {
       </div>
       <button class="fca-link-btn" id="fca-logout" type="button">Sair</button>
     </div>
-    <label class="fca-label" for="fca-magazine-filter">Revista em atendimento</label>
+    <div class="fca-label-row">
+      <label class="fca-label" for="fca-magazine-filter">Revista em atendimento</label>
+      <button class="fca-add-magazine" id="fca-add-magazine" type="button">+ Adicionar</button>
+    </div>
     <select class="fca-select fca-context-select" id="fca-magazine-filter">
       ${magazines.map(magazine => `<option value="${magazine.id}" ${state.magazineId === magazine.id ? "selected" : ""}>${escapeHtml(magazine.name)}</option>`).join("")}
     </select>
-    <button class="fca-add-magazine" id="fca-add-magazine" type="button">+ Adicionar revista</button>
     <div class="fca-search-wrap"><span>⌕</span><input class="fca-input fca-search" id="fca-search" placeholder="Buscar resposta..." value="${escapeAttr(state.filter)}"></div>
     <div class="fca-filters-grid">
       <select class="fca-select" id="fca-category-filter">
