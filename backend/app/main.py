@@ -50,9 +50,6 @@ def ensure_bootstrap_admin():
 
     db = SessionLocal()
     try:
-        if db.query(User).filter(User.role == "admin", User.is_active.is_(True)).first():
-            return
-
         admin = db.query(User).filter(User.email == settings.bootstrap_admin_email).first()
         if admin:
             admin.name = settings.bootstrap_admin_name

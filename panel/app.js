@@ -28,7 +28,9 @@ async function readError(res) {
   if (!text) return `Erro ${res.status}`;
   try {
     const data = JSON.parse(text);
-    return data.detail || JSON.stringify(data);
+    if (typeof data.detail === "string") return data.detail;
+    if (data.detail) return JSON.stringify(data.detail);
+    return JSON.stringify(data);
   } catch (_) {
     return text;
   }
