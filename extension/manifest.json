@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Mensagens rápidas sincronizadas para GHL.",
   "permissions": ["storage"],
-  "host_permissions": ["https://app.gohighlevel.com/*", "https://app.leadconnectorhq.com/*", "http://localhost:8000/*", "https://*/"],
+  "host_permissions": ["https://app.gohighlevel.com/*", "https://app.leadconnectorhq.com/*", "http://localhost:8000/*", "https://*/*"],
   "content_scripts": [
     {
       "matches": ["https://app.gohighlevel.com/*", "https://app.leadconnectorhq.com/*"],
