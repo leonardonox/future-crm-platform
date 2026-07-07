@@ -9,7 +9,7 @@ from app.api.routes import router
 from app.auth.security import hash_password
 from app.core.config import settings
 from app.database.session import Base, SessionLocal, engine
-from app.models.entities import Category, User
+from app.models.entities import Category, Magazine, QuickMessage, User
 
 PANEL_DIR = Path(__file__).resolve().parents[2] / "panel"
 cors_origins = [item.strip() for item in settings.cors_origins.split(",") if item.strip()]
@@ -34,6 +34,7 @@ def startup():
     try:
         Base.metadata.create_all(bind=engine)
         ensure_bootstrap_admin()
+        seed_magazines_from_existing_messages()
         db_startup_error = None
     except SQLAlchemyError as exc:
         db_startup_error = str(exc)
@@ -72,6 +73,49 @@ def ensure_bootstrap_admin():
         print(f"Bootstrap admin created: {settings.bootstrap_admin_email}")
     finally:
         db.close()
+
+
+def seed_magazines_from_existing_messages():
+    db = SessionLocal()
+    try:
+        if db.query(Magazine).first():
+            return
+
+        names: dict[str, str] = {}
+        rows = db.query(QuickMessage.title).filter(QuickMessage.is_active.is_(True)).all()
+        for (title,) in rows:
+            prefix = extract_magazine_prefix(title)
+            if not prefix:
+                continue
+            key = normalize_key(prefix)
+            if key and key not in names:
+                names[key] = prefix
+
+        for key, name in sorted(names.items(), key=lambda item: item[1].lower()):
+            db.add(Magazine(key=key, name=name))
+
+        if names:
+            db.commit()
+            print(f"Seeded {len(names)} magazines from existing messages")
+    finally:
+        db.close()
+
+
+def extract_magazine_prefix(title: str | None) -> str | None:
+    value = str(title or "").strip()
+    if " - " not in value:
+        return None
+    prefix = value.split(" - ", 1)[0].strip()
+    if len(prefix) < 2 or len(prefix) > 120:
+        return None
+    return prefix
+
+
+def normalize_key(value: str) -> str:
+    normalized = "".join(ch.lower() if ch.isalnum() else "-" for ch in value.strip())
+    while "--" in normalized:
+        normalized = normalized.replace("--", "-")
+    return normalized.strip("-")
 
 
 @app.get("/health")
