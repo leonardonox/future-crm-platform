@@ -6,12 +6,16 @@ from app.auth.deps import get_current_user
 from app.auth.security import create_access_token, hash_password, verify_password
 from app.core.config import settings
 from app.database.session import get_db
-from app.models.entities import Category, Favorite, QuickMessage, UsageLog, User
+from app.models.entities import Category, Favorite, Magazine, MessagePreference, QuickMessage, UsageLog, User
 from app.schemas.dto import (
     CategoryIn,
     CategoryOut,
     LoginIn,
+    MagazineIn,
+    MagazineOut,
+    MessageBulkIn,
     MessageIn,
+    MessageOrderIn,
     MessageOut,
     PasswordChangeIn,
     SetupAdminIn,
@@ -54,8 +58,10 @@ def ensure_company_scope_allowed(scope: str, user: User):
 
 
 def can_manage_message(message: QuickMessage, user: User) -> bool:
+    if is_admin(user):
+        return True
     if message.scope == "company":
-        return is_admin(user)
+        return False
     return message.owner_user_id == user.id
 
 
@@ -63,6 +69,8 @@ def get_visible_message(message_id: int, user: User, db: Session) -> QuickMessag
     message = db.get(QuickMessage, message_id)
     if not message or not message.is_active:
         raise HTTPException(status_code=404, detail="Mensagem não encontrada")
+    if is_admin(user):
+        return message
     if message.scope != "company" and message.owner_user_id != user.id:
         raise HTTPException(status_code=404, detail="Mensagem não encontrada")
     return message
@@ -72,11 +80,33 @@ def get_visible_category(category_id: int, scope: str, user: User, db: Session) 
     category = db.get(Category, category_id)
     if not category:
         raise HTTPException(status_code=404, detail="Categoria não encontrada")
+    if is_admin(user):
+        return category
     if category.scope == "company":
         return category
     if category.owner_user_id == user.id and scope == "user":
         return category
     raise HTTPException(status_code=403, detail="Categoria não permitida para este item")
+
+
+def get_message_preference(message_id: int, user: User, db: Session) -> MessagePreference:
+    preference = db.query(MessagePreference).filter(
+        MessagePreference.user_id == user.id,
+        MessagePreference.message_id == message_id,
+    ).first()
+    if preference:
+        return preference
+    preference = MessagePreference(user_id=user.id, message_id=message_id)
+    db.add(preference)
+    db.flush()
+    return preference
+
+
+def normalize_key(value: str) -> str:
+    normalized = "".join(ch.lower() if ch.isalnum() else "-" for ch in value.strip())
+    while "--" in normalized:
+        normalized = normalized.replace("--", "-")
+    return normalized.strip("-")
 
 
 def bootstrap_admin_password() -> str | None:
@@ -207,6 +237,8 @@ def list_usage(user: User = Depends(get_current_user), db: Session = Depends(get
 
 @router.get("/categories", response_model=list[CategoryOut])
 def list_categories(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if is_admin(user):
+        return db.query(Category).order_by(Category.name.asc()).all()
     return db.query(Category).filter((Category.scope == "company") | (Category.owner_user_id == user.id)).order_by(Category.name.asc()).all()
 
 
@@ -225,22 +257,95 @@ def create_category(payload: CategoryIn, user: User = Depends(get_current_user),
     return category
 
 
+@router.get("/magazines", response_model=list[MagazineOut])
+def list_magazines(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return db.query(Magazine).filter(Magazine.is_active.is_(True)).order_by(Magazine.name.asc()).all()
+
+
+@router.post("/magazines", response_model=MagazineOut)
+def create_magazine(payload: MagazineIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    name = payload.name.strip()
+    key = normalize_key(name)
+    if not key:
+        raise HTTPException(status_code=422, detail="Nome de revista invalido")
+
+    existing = db.query(Magazine).filter(Magazine.key == key).first()
+    if existing:
+        existing.name = name
+        existing.is_active = True
+        db.commit()
+        db.refresh(existing)
+        return existing
+
+    magazine = Magazine(name=name, key=key)
+    db.add(magazine)
+    db.commit()
+    db.refresh(magazine)
+    return magazine
+
+
+@router.put("/magazines/{magazine_id}", response_model=MagazineOut)
+def update_magazine(magazine_id: int, payload: MagazineIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    magazine = db.get(Magazine, magazine_id)
+    if not magazine or not magazine.is_active:
+        raise HTTPException(status_code=404, detail="Revista nao encontrada")
+
+    name = payload.name.strip()
+    key = normalize_key(name)
+    if not key:
+        raise HTTPException(status_code=422, detail="Nome de revista invalido")
+
+    duplicate = db.query(Magazine).filter(Magazine.key == key, Magazine.id != magazine_id).first()
+    if duplicate and duplicate.is_active:
+        raise HTTPException(status_code=409, detail="Ja existe uma revista com este nome")
+    if duplicate and not duplicate.is_active:
+        duplicate.name = name
+        duplicate.is_active = True
+        magazine.is_active = False
+        db.commit()
+        db.refresh(duplicate)
+        return duplicate
+
+    magazine.name = name
+    magazine.key = key
+    db.commit()
+    db.refresh(magazine)
+    return magazine
+
+
+@router.delete("/magazines/{magazine_id}")
+def delete_magazine(magazine_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    magazine = db.get(Magazine, magazine_id)
+    if not magazine or not magazine.is_active:
+        raise HTTPException(status_code=404, detail="Revista nao encontrada")
+    magazine.is_active = False
+    db.commit()
+    return {"ok": True}
+
+
 @router.get("/messages", response_model=list[MessageOut])
 def list_messages(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    rows = db.query(QuickMessage).filter(
-        QuickMessage.is_active.is_(True),
-        ((QuickMessage.scope == "company") | (QuickMessage.owner_user_id == user.id)),
-    ).all()
+    query = db.query(QuickMessage).filter(QuickMessage.is_active.is_(True))
+    if not is_admin(user):
+        query = query.filter((QuickMessage.scope == "company") | (QuickMessage.owner_user_id == user.id))
+    rows = query.all()
     category_ids = {row.category_id for row in rows}
     categories = {row.id: row for row in db.query(Category).filter(Category.id.in_(category_ids)).all()} if category_ids else {}
     favorite_ids = {fav.message_id for fav in db.query(Favorite).filter(Favorite.user_id == user.id).all()}
-    return [
+    preferences = {
+        pref.message_id: pref
+        for pref in db.query(MessagePreference).filter(MessagePreference.user_id == user.id).all()
+    }
+    output = [
         MessageOut.model_validate(row, from_attributes=True).model_copy(update={
             "category": categories.get(row.category_id),
             "is_favorite": row.id in favorite_ids,
+            "is_pinned": preferences.get(row.id).is_pinned if preferences.get(row.id) else False,
+            "sort_order": preferences.get(row.id).sort_order if preferences.get(row.id) else 0,
         })
         for row in rows
     ]
+    return sorted(output, key=lambda item: (not item.is_pinned, item.sort_order, item.title.lower()))
 
 
 @router.post("/messages", response_model=MessageOut)
@@ -260,6 +365,28 @@ def create_message(payload: MessageIn, user: User = Depends(get_current_user), d
     return message
 
 
+@router.post("/messages/bulk", response_model=list[MessageOut])
+def create_messages_bulk(payload: MessageBulkIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    created = []
+    for item in payload.messages:
+        ensure_company_scope_allowed(item.scope, user)
+        get_visible_category(item.category_id, item.scope, user, db)
+        message = QuickMessage(
+            title=item.title,
+            content=item.content,
+            category_id=item.category_id,
+            scope=item.scope,
+            owner_user_id=None if item.scope == "company" else user.id,
+        )
+        db.add(message)
+        created.append(message)
+
+    db.commit()
+    for message in created:
+        db.refresh(message)
+    return created
+
+
 @router.put("/messages/{message_id}", response_model=MessageOut)
 def update_message(message_id: int, payload: MessageIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     message = db.get(QuickMessage, message_id)
@@ -271,7 +398,7 @@ def update_message(message_id: int, payload: MessageIn, user: User = Depends(get
     message.content = payload.content
     message.category_id = payload.category_id
     message.scope = payload.scope
-    message.owner_user_id = None if payload.scope == "company" else user.id
+    message.owner_user_id = None if payload.scope == "company" else (message.owner_user_id if is_admin(user) and message.owner_user_id else user.id)
     db.commit()
     db.refresh(message)
     return message
@@ -301,6 +428,41 @@ def favorite_message(message_id: int, user: User = Depends(get_current_user), db
 def unfavorite_message(message_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     get_visible_message(message_id, user, db)
     db.query(Favorite).filter(Favorite.user_id == user.id, Favorite.message_id == message_id).delete()
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/messages/{message_id}/pin")
+def pin_message(message_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    get_visible_message(message_id, user, db)
+    preference = get_message_preference(message_id, user, db)
+    preference.is_pinned = True
+    db.commit()
+    return {"ok": True}
+
+
+@router.delete("/messages/{message_id}/pin")
+def unpin_message(message_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    get_visible_message(message_id, user, db)
+    preference = get_message_preference(message_id, user, db)
+    preference.is_pinned = False
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/messages/reorder")
+def reorder_messages(payload: MessageOrderIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    message_ids = list(dict.fromkeys(payload.message_ids))
+    if len(message_ids) != len(payload.message_ids):
+        raise HTTPException(status_code=422, detail="Lista de mensagens duplicada")
+
+    for index, message_id in enumerate(message_ids):
+        get_visible_message(message_id, user, db)
+        preference = get_message_preference(message_id, user, db)
+        if preference.is_pinned:
+            raise HTTPException(status_code=409, detail="Desfixe a mensagem antes de mover")
+        preference.sort_order = index
+
     db.commit()
     return {"ok": True}
 

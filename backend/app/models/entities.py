@@ -25,6 +25,16 @@ class Category(Base):
     owner_user_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
 
+class Magazine(Base):
+    __tablename__ = "future_crm_magazines"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    key: Mapped[str] = mapped_column(String(80), unique=True, index=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class QuickMessage(Base):
     __tablename__ = "future_crm_quick_messages"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -44,6 +54,16 @@ class Favorite(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(Integer, nullable=False)
     message_id: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
+class MessagePreference(Base):
+    __tablename__ = "future_crm_message_preferences"
+    __table_args__ = (UniqueConstraint("user_id", "message_id", name="future_crm_uq_user_message_preference"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    message_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    is_pinned: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class UsageLog(Base):

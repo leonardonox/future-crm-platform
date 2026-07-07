@@ -15,29 +15,55 @@
 .fca-label{display:block;margin:10px 0 5px;font-size:10px;font-weight:900;color:#53635c;text-transform:uppercase;letter-spacing:.03em}
 .fca-label-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:10px 0 5px}
 .fca-label-row .fca-label{margin:0}
+.fca-magazine-actions{display:flex;align-items:center;gap:5px;flex-wrap:wrap;justify-content:flex-end}
 .fca-input,.fca-area,.fca-select{width:100%;box-sizing:border-box;border:1px solid #d6dfda;border-radius:8px;padding:10px 11px;margin:0 0 9px;background:#fff;color:#111827;font:13px Arial,sans-serif;outline:none}
 .fca-input:focus,.fca-area:focus,.fca-select:focus{border-color:#0b6b48;box-shadow:0 0 0 3px rgba(11,107,72,.12)}
 .fca-context-select{font-weight:800}
 .fca-add-magazine{border:1px solid #bdd3c9;border-radius:999px;background:#f7fbf9;color:#06412c;font:900 10px Arial,sans-serif;padding:4px 8px;margin:0;cursor:pointer;white-space:nowrap}
 .fca-add-magazine:hover{background:#eef8f3;border-color:#0b6b48}
+.fca-mini-link{border:0;background:transparent;color:#65756e;font:900 10px Arial,sans-serif;padding:3px 2px;margin:0;cursor:pointer;white-space:nowrap}
+.fca-mini-link:hover{color:#06412c;text-decoration:underline;filter:none}
+.fca-mini-link.danger{color:#9b4a4a}
+.fca-mini-link.danger:hover{color:#b4232a}
 .fca-search-wrap{position:relative}
 .fca-search-wrap span{position:absolute;left:11px;top:10px;color:#718179;font-weight:900;z-index:1}
 .fca-search{padding-left:30px}
 .fca-area{min-height:118px;resize:vertical;line-height:1.45}
+.fca-bulk-list{display:grid;gap:10px;margin:10px 0}
+.fca-bulk-row{border:1px solid #e1e8e4;border-radius:9px;background:#fbfcfb;padding:10px}
+.fca-bulk-row-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;color:#42534b;font:900 11px Arial,sans-serif}
+.fca-bulk-area{min-height:86px}
+.fca-bulk-footer{margin-top:10px}
 .fca-row,.fca-actions{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
 .fca-filters-grid{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:2px}
-.fca-toolbar{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:4px 0 8px}
+.fca-toolbar{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:4px 0 8px}
 .fca-count{font-size:11px;font-weight:800;color:#5b6b64;margin:5px 0 9px}
-.fca-card{border:1px solid #e1e8e4;border-radius:10px;padding:12px;margin:9px 0;background:#fff;box-shadow:0 5px 16px rgba(15,23,42,.07)}
+.fca-card{border:1px solid #e1e8e4;border-radius:10px;padding:12px;margin:9px 0;background:#fff;box-shadow:0 5px 16px rgba(15,23,42,.07);position:relative;min-height:142px}
+.fca-card.pinned{border-color:#d8b347;background:#fffdf5}
+.fca-card[draggable="true"]{cursor:grab}
+.fca-card.dragging{opacity:.62}
+.fca-card.drag-over{border-color:#0b6b48;box-shadow:0 0 0 3px rgba(11,107,72,.12)}
 .fca-card-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
 .fca-title{font-weight:900;margin-bottom:5px;color:#111827;line-height:1.25;font-size:13px}
 .fca-preview{font-size:12px;line-height:1.45;color:#3f4f48;margin:10px 0 11px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.fca-card-meta{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
 .fca-small{display:inline-block;font-size:9px;color:#5f7068;text-transform:uppercase;font-weight:900;background:#f2f6f4;border-radius:5px;padding:3px 6px}
+.fca-pin-badge{display:inline-block;font-size:9px;color:#7a5400;text-transform:uppercase;font-weight:900;background:#fff2bd;border-radius:5px;padding:3px 6px}
+.fca-order-actions{position:absolute;right:12px;bottom:80px;width:62px;margin:0}
+.fca-order-btn{border:1px solid #d6dfda;border-radius:7px;background:#f8faf9;color:#30423a;cursor:pointer;font:900 10px Arial,sans-serif;padding:7px 6px;width:62px}
+.fca-order-btn:hover{border-color:#0b6b48;background:#eef8f3;filter:none}
+.fca-order-btn.active{border-color:#d8b347;background:#fff2bd;color:#7a5400}
+.fca-order-btn:disabled{cursor:not-allowed;opacity:.48}
+.fca-order-btn:disabled:hover{border-color:#d6dfda;background:#f8faf9}
 .fca-btn,.fca-icon-btn,.fca-star,.fca-link-btn{border:0;border-radius:8px;padding:8px 10px;background:#06412c;color:#fff;cursor:pointer;font-weight:900;font-size:12px}
 .fca-btn:hover,.fca-icon-btn:hover,.fca-star:hover,.fca-link-btn:hover{filter:brightness(1.06)}
 .fca-btn.secondary{background:#eef3f0;color:#123126}
 .fca-btn.danger{background:#dc2f36;color:#fff}
-.fca-card .fca-actions{display:grid;grid-template-columns:1fr auto auto;gap:8px}
+.fca-card .fca-actions{display:block;margin-right:74px}
+.fca-card .fca-actions [data-insert]{width:100%}
+.fca-card .fca-actions [data-edit],.fca-card .fca-actions [data-del]{position:absolute;right:12px;width:62px;padding:7px 6px;font-size:10px}
+.fca-card .fca-actions [data-edit]{bottom:46px}
+.fca-card .fca-actions [data-del]{bottom:12px}
 .fca-insert{width:100%}
 .fca-square{width:34px;height:34px;padding:0}
 .fca-full{width:100%;margin-top:4px}

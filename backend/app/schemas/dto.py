@@ -64,6 +64,19 @@ class CategoryOut(CategoryIn):
         from_attributes = True
 
 
+class MagazineIn(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
+
+
+class MagazineOut(MagazineIn):
+    id: int
+    key: str
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+
 class MessageIn(BaseModel):
     title: str = Field(min_length=2, max_length=120)
     content: str = Field(min_length=1)
@@ -71,13 +84,23 @@ class MessageIn(BaseModel):
     scope: str = "user"
 
 
+class MessageBulkIn(BaseModel):
+    messages: list[MessageIn] = Field(min_length=1, max_length=50)
+
+
 class MessageOut(MessageIn):
     id: int
     category: CategoryOut | None = None
     is_favorite: bool = False
+    is_pinned: bool = False
+    sort_order: int = 0
 
     class Config:
         from_attributes = True
+
+
+class MessageOrderIn(BaseModel):
+    message_ids: list[int]
 
 
 class UsageIn(BaseModel):
