@@ -24,6 +24,7 @@ let state = {
   status: "",
   error: "",
   loading: false,
+  buttonPosition: null,
 };
 
 function isExtensionContextReady() {
@@ -149,8 +150,8 @@ function render() {
   btn.id = "future-crm-btn";
   btn.type = "button";
   btn.textContent = "⚡ Future";
-  btn.onclick = () => document.getElementById("future-crm-panel")?.classList.toggle("fca-hidden");
   document.body.appendChild(btn);
+  setupDraggableButton(btn);
 
   const panel = document.createElement("div");
   panel.id = "future-crm-panel";
@@ -169,6 +170,83 @@ function render() {
 
   document.getElementById("fca-close").onclick = () => panel.classList.add("fca-hidden");
   renderBody();
+}
+
+function setupDraggableButton(button) {
+  let drag = null;
+  let suppressClick = false;
+
+  const placeButton = (x, y) => {
+    const maxX = Math.max(0, window.innerWidth - button.offsetWidth);
+    const maxY = Math.max(0, window.innerHeight - button.offsetHeight);
+    const position = {
+      x: Math.min(Math.max(0, x), maxX),
+      y: Math.min(Math.max(0, y), maxY),
+    };
+    button.style.left = `${position.x}px`;
+    button.style.top = `${position.y}px`;
+    button.style.right = "auto";
+    button.style.bottom = "auto";
+    state.buttonPosition = position;
+    return position;
+  };
+
+  if (state.buttonPosition) {
+    placeButton(state.buttonPosition.x, state.buttonPosition.y);
+  }
+
+  button.addEventListener("pointerdown", event => {
+    if (event.button !== undefined && event.button !== 0) return;
+    const rect = button.getBoundingClientRect();
+    drag = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      offsetX: event.clientX - rect.left,
+      offsetY: event.clientY - rect.top,
+      moved: false,
+    };
+    button.setPointerCapture(event.pointerId);
+    button.classList.add("fca-dragging");
+  });
+
+  button.addEventListener("pointermove", event => {
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 4) {
+      drag.moved = true;
+    }
+    if (!drag.moved) return;
+    event.preventDefault();
+    placeButton(event.clientX - drag.offsetX, event.clientY - drag.offsetY);
+  });
+
+  const finishDrag = async event => {
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    suppressClick = drag.moved;
+    button.classList.remove("fca-dragging");
+    if (button.hasPointerCapture(event.pointerId)) button.releasePointerCapture(event.pointerId);
+    drag = null;
+    if (suppressClick && state.buttonPosition) {
+      await storage.set({ buttonPosition: state.buttonPosition });
+    }
+  };
+
+  button.addEventListener("pointerup", finishDrag);
+  button.addEventListener("pointercancel", finishDrag);
+  button.addEventListener("click", event => {
+    if (suppressClick) {
+      suppressClick = false;
+      event.preventDefault();
+      return;
+    }
+    document.getElementById("future-crm-panel")?.classList.toggle("fca-hidden");
+  });
+
+  window.addEventListener("resize", () => {
+    if (!state.buttonPosition) return;
+    const position = placeButton(state.buttonPosition.x, state.buttonPosition.y);
+    storage.set({ buttonPosition: position });
+  });
 }
 
 function renderBody() {
@@ -934,7 +1012,7 @@ async function logUsage(id) {
 }
 
 (async function init() {
-  const saved = await storage.get(["token", "apiBase", "cachedCategories", "cachedMessages", "cachedMagazines", "cachedUser", "selectedMagazineId"]);
+  const saved = await storage.get(["token", "apiBase", "cachedCategories", "cachedMessages", "cachedMagazines", "cachedUser", "selectedMagazineId", "buttonPosition"]);
   state.token = saved.token;
   state.apiBase = API_DEFAULT;
   await storage.set({ apiBase: API_DEFAULT });
@@ -943,6 +1021,7 @@ async function logUsage(id) {
   state.messages = saved.cachedMessages || [];
   state.magazines = saved.cachedMagazines || [];
   state.magazineId = saved.selectedMagazineId || "all";
+  state.buttonPosition = saved.buttonPosition || null;
   render();
 
   if (state.token) {
