@@ -43,6 +43,7 @@ class QuickMessage(Base):
     scope: Mapped[str] = mapped_column(String(20), default="user")  # user/company
     category_id: Mapped[int] = mapped_column(Integer, nullable=False)
     owner_user_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    channel: Mapped[str] = mapped_column(String(20), default="crm", nullable=False, index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

@@ -30,6 +30,14 @@ from app.schemas.dto import (
 router = APIRouter(prefix="/api")
 VALID_SCOPES = {"user", "company"}
 VALID_ROLES = {"agent", "admin"}
+VALID_CHANNELS = {"crm", "gmail"}
+
+
+def validate_channel(channel: str) -> str:
+    value = str(channel or "crm").strip().lower()
+    if value not in VALID_CHANNELS:
+        raise HTTPException(status_code=422, detail="Canal inválido")
+    return value
 
 
 def is_admin(user: User) -> bool:
@@ -65,9 +73,9 @@ def can_manage_message(message: QuickMessage, user: User) -> bool:
     return message.owner_user_id == user.id
 
 
-def get_visible_message(message_id: int, user: User, db: Session) -> QuickMessage:
+def get_visible_message(message_id: int, channel: str, user: User, db: Session) -> QuickMessage:
     message = db.get(QuickMessage, message_id)
-    if not message or not message.is_active:
+    if not message or not message.is_active or message.channel != validate_channel(channel):
         raise HTTPException(status_code=404, detail="Mensagem não encontrada")
     if is_admin(user):
         return message
@@ -324,8 +332,9 @@ def delete_magazine(magazine_id: int, user: User = Depends(get_current_user), db
 
 
 @router.get("/messages", response_model=list[MessageOut])
-def list_messages(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    query = db.query(QuickMessage).filter(QuickMessage.is_active.is_(True))
+def list_messages(channel: str = "crm", user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    channel = validate_channel(channel)
+    query = db.query(QuickMessage).filter(QuickMessage.is_active.is_(True), QuickMessage.channel == channel)
     if not is_admin(user):
         query = query.filter((QuickMessage.scope == "company") | (QuickMessage.owner_user_id == user.id))
     rows = query.all()
@@ -349,7 +358,8 @@ def list_messages(user: User = Depends(get_current_user), db: Session = Depends(
 
 
 @router.post("/messages", response_model=MessageOut)
-def create_message(payload: MessageIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def create_message(payload: MessageIn, channel: str = "crm", user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    channel = validate_channel(channel)
     ensure_company_scope_allowed(payload.scope, user)
     get_visible_category(payload.category_id, payload.scope, user, db)
     message = QuickMessage(
@@ -358,6 +368,7 @@ def create_message(payload: MessageIn, user: User = Depends(get_current_user), d
         category_id=payload.category_id,
         scope=payload.scope,
         owner_user_id=None if payload.scope == "company" else user.id,
+        channel=channel,
     )
     db.add(message)
     db.commit()
@@ -366,7 +377,8 @@ def create_message(payload: MessageIn, user: User = Depends(get_current_user), d
 
 
 @router.post("/messages/bulk", response_model=list[MessageOut])
-def create_messages_bulk(payload: MessageBulkIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def create_messages_bulk(payload: MessageBulkIn, channel: str = "crm", user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    channel = validate_channel(channel)
     created = []
     for item in payload.messages:
         ensure_company_scope_allowed(item.scope, user)
@@ -377,6 +389,7 @@ def create_messages_bulk(payload: MessageBulkIn, user: User = Depends(get_curren
             category_id=item.category_id,
             scope=item.scope,
             owner_user_id=None if item.scope == "company" else user.id,
+            channel=channel,
         )
         db.add(message)
         created.append(message)
@@ -388,9 +401,10 @@ def create_messages_bulk(payload: MessageBulkIn, user: User = Depends(get_curren
 
 
 @router.put("/messages/{message_id}", response_model=MessageOut)
-def update_message(message_id: int, payload: MessageIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def update_message(message_id: int, payload: MessageIn, channel: str = "crm", user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    channel = validate_channel(channel)
     message = db.get(QuickMessage, message_id)
-    if not message or not message.is_active or not can_manage_message(message, user):
+    if not message or not message.is_active or message.channel != channel or not can_manage_message(message, user):
         raise HTTPException(status_code=404, detail="Mensagem não encontrada")
     ensure_company_scope_allowed(payload.scope, user)
     get_visible_category(payload.category_id, payload.scope, user, db)
@@ -405,9 +419,10 @@ def update_message(message_id: int, payload: MessageIn, user: User = Depends(get
 
 
 @router.delete("/messages/{message_id}")
-def delete_message(message_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def delete_message(message_id: int, channel: str = "crm", user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    channel = validate_channel(channel)
     message = db.get(QuickMessage, message_id)
-    if not message or not message.is_active or not can_manage_message(message, user):
+    if not message or not message.is_active or message.channel != channel or not can_manage_message(message, user):
         raise HTTPException(status_code=404, detail="Mensagem não encontrada")
     message.is_active = False
     db.commit()
@@ -415,8 +430,8 @@ def delete_message(message_id: int, user: User = Depends(get_current_user), db: 
 
 
 @router.post("/messages/{message_id}/favorite")
-def favorite_message(message_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    get_visible_message(message_id, user, db)
+def favorite_message(message_id: int, channel: str = "crm", user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    get_visible_message(message_id, channel, user, db)
     exists = db.query(Favorite).filter(Favorite.user_id == user.id, Favorite.message_id == message_id).first()
     if not exists:
         db.add(Favorite(user_id=user.id, message_id=message_id))
@@ -425,16 +440,16 @@ def favorite_message(message_id: int, user: User = Depends(get_current_user), db
 
 
 @router.delete("/messages/{message_id}/favorite")
-def unfavorite_message(message_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    get_visible_message(message_id, user, db)
+def unfavorite_message(message_id: int, channel: str = "crm", user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    get_visible_message(message_id, channel, user, db)
     db.query(Favorite).filter(Favorite.user_id == user.id, Favorite.message_id == message_id).delete()
     db.commit()
     return {"ok": True}
 
 
 @router.post("/messages/{message_id}/pin")
-def pin_message(message_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    get_visible_message(message_id, user, db)
+def pin_message(message_id: int, channel: str = "crm", user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    get_visible_message(message_id, channel, user, db)
     preference = get_message_preference(message_id, user, db)
     preference.is_pinned = True
     db.commit()
@@ -442,8 +457,8 @@ def pin_message(message_id: int, user: User = Depends(get_current_user), db: Ses
 
 
 @router.delete("/messages/{message_id}/pin")
-def unpin_message(message_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    get_visible_message(message_id, user, db)
+def unpin_message(message_id: int, channel: str = "crm", user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    get_visible_message(message_id, channel, user, db)
     preference = get_message_preference(message_id, user, db)
     preference.is_pinned = False
     db.commit()
@@ -451,13 +466,14 @@ def unpin_message(message_id: int, user: User = Depends(get_current_user), db: S
 
 
 @router.post("/messages/reorder")
-def reorder_messages(payload: MessageOrderIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def reorder_messages(payload: MessageOrderIn, channel: str = "crm", user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    channel = validate_channel(channel)
     message_ids = list(dict.fromkeys(payload.message_ids))
     if len(message_ids) != len(payload.message_ids):
         raise HTTPException(status_code=422, detail="Lista de mensagens duplicada")
 
     for index, message_id in enumerate(message_ids):
-        get_visible_message(message_id, user, db)
+        get_visible_message(message_id, channel, user, db)
         preference = get_message_preference(message_id, user, db)
         if preference.is_pinned:
             raise HTTPException(status_code=409, detail="Desfixe a mensagem antes de mover")
@@ -468,8 +484,8 @@ def reorder_messages(payload: MessageOrderIn, user: User = Depends(get_current_u
 
 
 @router.post("/messages/{message_id}/usage")
-def log_message_usage(message_id: int, payload: UsageIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    get_visible_message(message_id, user, db)
+def log_message_usage(message_id: int, payload: UsageIn, channel: str = "crm", user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    get_visible_message(message_id, channel, user, db)
     db.add(UsageLog(user_id=user.id, message_id=message_id, source=payload.source[:40]))
     db.commit()
     return {"ok": True}

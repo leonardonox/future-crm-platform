@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from app.api.routes import router
 from app.auth.security import hash_password
 from app.core.config import settings
@@ -33,6 +33,7 @@ def startup():
     global db_startup_error
     try:
         Base.metadata.create_all(bind=engine)
+        ensure_runtime_schema()
         ensure_bootstrap_admin()
         seed_magazines_from_existing_messages()
         db_startup_error = None
@@ -73,6 +74,16 @@ def ensure_bootstrap_admin():
         print(f"Bootstrap admin created: {settings.bootstrap_admin_email}")
     finally:
         db.close()
+
+
+def ensure_runtime_schema():
+    columns = {column["name"] for column in inspect(engine).get_columns("future_crm_quick_messages")}
+    if "channel" not in columns:
+        with engine.begin() as connection:
+            connection.execute(text(
+                "ALTER TABLE future_crm_quick_messages "
+                "ADD COLUMN channel VARCHAR(20) NOT NULL DEFAULT 'crm'"
+            ))
 
 
 def seed_magazines_from_existing_messages():
